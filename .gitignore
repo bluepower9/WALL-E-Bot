@@ -1,1 +1,3 @@
 src/AI/Facial_Recognition/test.jpg
+__pycache__/*
+*.pyc
