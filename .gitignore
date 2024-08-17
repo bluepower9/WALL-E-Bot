@@ -1,3 +1,8 @@
 src/AI/Facial_Recognition/test.jpg
 __pycache__/
 *.pyc
+*.mp4
+*.wav
+GoogleExample.py
+face_encodings
+voice_embeddings
