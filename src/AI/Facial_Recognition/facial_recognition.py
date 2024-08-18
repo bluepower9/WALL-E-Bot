@@ -1,6 +1,6 @@
 import cv2
 import face_recognition as fr
-import face_data as fd
+import AI.facial_recognition.face_data as fd
 import numpy as np
 
 STOP_FLAG = False

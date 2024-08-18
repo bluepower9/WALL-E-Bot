@@ -1,6 +1,6 @@
 from resemblyzer import VoiceEncoder, preprocess_wav
-from micstream import MicStream
-from voice_data import load_voice_embeddings
+from AI.voice_recognition.micstream import MicStream
+from AI.voice_recognition.voice_data import load_voice_embeddings
 import numpy as np
 import resemblyzer
 

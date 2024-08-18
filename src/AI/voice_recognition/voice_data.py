@@ -1,5 +1,5 @@
 from resemblyzer import VoiceEncoder, preprocess_wav
-from micstream import MicStream
+from AI.voice_recognition.micstream import MicStream
 import time
 import pickle
 import numpy as np
