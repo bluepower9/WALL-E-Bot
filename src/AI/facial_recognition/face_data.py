@@ -1,7 +1,9 @@
 import face_recognition as fr
 import pickle
 
-def load_faces(path='./face_encodings'):
+DEFAULT_SAVE_PATH = './data/encodings/face_encodings'
+
+def load_faces(path=DEFAULT_SAVE_PATH):
     try:
         with open(path, 'rb') as file:
             data = pickle.load(file)
@@ -13,7 +15,7 @@ def load_faces(path='./face_encodings'):
         return []
 
 
-def save_faces(faces, path='./face_encodings'):
+def save_faces(faces, path=DEFAULT_SAVE_PATH):
     try:
         with open(path, 'wb') as file:
             pickle.dump(faces, file)
@@ -21,7 +23,7 @@ def save_faces(faces, path='./face_encodings'):
         print(e)
     
 
-def add_face(name, face_enc, path='./face_encodings'):
+def add_face(name, face_enc, path=DEFAULT_SAVE_PATH):
     faces = load_faces(path=path)
     faces.append((name, face_enc))
     save_faces(faces, path=path)

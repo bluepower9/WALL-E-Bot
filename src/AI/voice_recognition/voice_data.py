@@ -5,7 +5,10 @@ import pickle
 import numpy as np
 
 
-def load_voice_embeddings(filename:str='voice_embeddings') -> list:
+DEFAULT_SAVE_PATH = './data/encodings/voice_encodings'
+
+
+def load_voice_embeddings(filename:str=DEFAULT_SAVE_PATH) -> list:
     '''loads the known voices from a file or returns empty array.'''
 
     try:
@@ -19,7 +22,7 @@ def load_voice_embeddings(filename:str='voice_embeddings') -> list:
         return []
     
 
-def save_voices(data:list, filename:str='voice_embeddings') -> None:
+def save_voices(data:list, filename:str=DEFAULT_SAVE_PATH) -> None:
     '''
     Saves voice embeddings to a file.
     '''

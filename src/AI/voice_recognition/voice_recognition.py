@@ -1,9 +1,12 @@
 from resemblyzer import VoiceEncoder, preprocess_wav
 from AI.voice_recognition.micstream import MicStream
-from AI.voice_recognition.voice_data import load_voice_embeddings
+from AI.voice_recognition.voice_data import load_voice_embeddings, DEFAULT_SAVE_PATH
+from queue import Queue
 import numpy as np
+import pyaudio
 import resemblyzer
-
+import speech_recognition as sr
+import copy
 
 encoder = VoiceEncoder(device='cpu')
 
@@ -41,14 +44,30 @@ def get_speaker(audio_emb, speaker_embs:list, threshold=.8) -> int:
 
 
 
-def detect_speaker(chunk_count=20, threshold=.8):
-    '''Runs a loop to listen to mic and detect who is speaking. Chunk_count used to 
-    determine how many chunks to process at a time.'''
+def detect_speaker(queue:list=None, 
+                   chunk_count:int=20, 
+                   threshold:float=.8,
+                   voice_encodings_path=DEFAULT_SAVE_PATH) -> None:
+    '''
+    Runs a loop to listen to mic and detect who is speaking. Processes audio into strings that can be used.
+    
+    :param queue: Queue object that will be used to store the detected text and speaker. Default None to not store it.
+    :param chunk_count: Int that represents how many chunks to sample to determine speaker. Default is 20 which is 2 seconds.
+    :param threshold: threshold used to identify speaker similarity. Defaults to 0.8. Higher means more precise, smaller more leeway.
+    
+    '''
 
-    voices = load_voice_embeddings()
+    voices = load_voice_embeddings(filename=voice_encodings_path)
     names, speaker_embs = [i[0] for i in voices], [i[1] for i in voices]
 
     audio = []
+    command = []
+    speakers = []   # used to find avg
+    speaker = -1
+    active_listening = False
+    recognizer = sr.Recognizer()
+
+    print('Now listening to microphone...')
     with MicStream(16000, 1600) as stream:
         audio_generator = stream.generator()
         for content in audio_generator:
@@ -57,15 +76,57 @@ def detect_speaker(chunk_count=20, threshold=.8):
             if len(audio) > chunk_count:
                 audio.pop(0)
 
-            wav = preprocess_wav(np.frombuffer(b''.join(audio), dtype=np.int16).astype(np.float32))
+            # converts audio to wav and encodes the data.
+            wav_bytes = b''.join(audio)
+
+            wav = preprocess_wav(np.frombuffer(wav_bytes, dtype=np.int16).astype(np.float32))
             wav = resemblyzer.trim_long_silences(wav)
             data = encoder.embed_utterance(wav)
-            
             speaker_index = get_speaker(data, speaker_embs, threshold=threshold)
-            if speaker_index >= 0:
-                print(names[speaker_index])
-            else:
-                print('No speaker detected.')
+
+            # if a voice is detected, add data into the full command array for when sample len > chunk_count
+            # adds to the speaker to the list of who speaks at each sample to find avg.
+            if active_listening:
+                command.append(content)
+                speakers.append(speaker_index)
+                # print(speakers)
+
+                # only uses the past chunk_count amount of data
+                if len(speakers) > chunk_count:
+                    speakers.pop(0)
+            
+            # used to detect a new speaker and begin actively listening
+            elif speaker_index >= 0:
+                print('detected speaker...')
+                command = copy.deepcopy(audio)
+                speakers = [speaker_index]
+                active_listening = True
+                speaker = speaker_index
+
+            # passes audio data to be translated to text once it is detects the speaker is no longer speaking.
+            # adds to shared queue if it is supplied in parameters
+            if active_listening and speakers.count(speaker) / len(speakers) <= 0.33: # threshold for how often speaker should be talking
+                try:
+                    transcript = recognizer.recognize_google(sr.AudioData(b''.join(command), 16000, pyaudio.get_sample_size(pyaudio.paInt16)))
+                
+                except sr.UnknownValueError:
+                    transcript = 'An unknown error occured. Please try again.'
+                
+                finally:
+                    active_listening = False
+
+                if queue is not None:
+                    print('adding data to queue')
+                    queue.append({
+                        'speaker': names[speaker_index],
+                        'speaker_index': speaker_index,
+                        'transcript': transcript
+                    })
+
+                else:
+                    print(names[speaker_index], ': ', transcript)
+            
+
 
 
 
