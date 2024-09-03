@@ -5,4 +5,4 @@ __pycache__/
 *.wav
 GoogleExample.py
 face_encodings
-voice_encodings
+voice_encodings*

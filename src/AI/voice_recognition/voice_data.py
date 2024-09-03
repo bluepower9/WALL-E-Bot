@@ -34,6 +34,22 @@ def save_voices(data:list, filename:str=DEFAULT_SAVE_PATH) -> None:
         print(e)
 
 
+def add_voice(sample: bytes, name: str) -> None:
+    '''
+    Adds a new voice from a sample of a voice as bytes.
+    '''
+    encoder = VoiceEncoder(device='cpu')
+
+    data = np.frombuffer(sample, dtype=np.int16).astype(np.float32)
+    data = preprocess_wav(data)
+
+    emb = encoder.embed_utterance(data)
+
+    current_embs = load_voice_embeddings()
+    current_embs.append((name, emb))
+    save_voices(current_embs)
+
+
 def learn_voice(name:str, rec_time=10) -> bytes:
     '''
     Learns a new voice by sampling a 10 second audio stream

@@ -4,17 +4,25 @@ import AI.facial_recognition.face_data as fd
 import numpy as np
 
 
-def facial_rec_loop():
-    fr = FacialRecognition()
+def facial_rec_loop(que=None, namespace=None):
+    fr = FacialRecognition(que=que, namespace=namespace)
     fr.start()
 
 
 class FacialRecognition:
-    def __init__(self, save_path=fd.DEFAULT_SAVE_PATH):
+    def __init__(self, que:list=None, namespace=None, save_path=fd.DEFAULT_SAVE_PATH):
         self.STOP_FLAG = False
+        self.que = que
+        self.namespace = namespace
+        self.save_path = save_path
         self.face_classifier = cv2.CascadeClassifier(cv2.data.haarcascades+'haarcascade_frontalface_default.xml')
+
+        self.load_face_encodings()
+
+
+    def load_face_encodings(self):
         print('loading saved faces')
-        __ = fd.load_faces(path=save_path)
+        __ = fd.load_faces(path=self.save_path)
         self.encodings, self.names = [i[1] for i in __], [i[0] for i in __]
 
 
@@ -44,6 +52,14 @@ class FacialRecognition:
                 name = self.names[matches.index(True)]   # gets the first match and returns that name
             
             names.append(name)
+        
+        # adds to data que if faces found
+        # if self.que is not None and len(names) > 0:
+        self.que.append(list(zip(names, face_locs, face_encs, strict=True)))
+
+        # only holds 50 frames of data to prevent too large of list
+        if len(self.que) > 50:
+            self.que.pop(0)
 
         # draws square around face with name
         for (top, right, bottom, left), name in zip(face_locs, names):
@@ -70,6 +86,10 @@ class FacialRecognition:
             rval, frame = vc.read()
 
         while not self.STOP_FLAG and rval:
+            if self.namespace.reload:
+                self.load_face_encodings()
+                self.namespace.reload = False
+
             cv2.imshow("preview", self.detect_face(frame))
 
             key = cv2.waitKey(10)

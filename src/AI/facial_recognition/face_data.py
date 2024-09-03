@@ -11,7 +11,7 @@ def load_faces(path=DEFAULT_SAVE_PATH):
         return data
     
     except (pickle.UnpicklingError, FileNotFoundError) as e:
-        print(e)
+        print(e, ' Using empty list.')
         return []
 
 

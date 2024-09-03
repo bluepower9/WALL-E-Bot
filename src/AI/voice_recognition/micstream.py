@@ -9,6 +9,9 @@ class MicStream:
         self.channels = channels
         self.chunk = chunk
         self.closed = False
+        
+        self.FORMAT = pyaudio.paInt16
+        self.WIDTH = pyaudio.get_sample_size(self.FORMAT)
 
         self._buf = queue.Queue()
 
