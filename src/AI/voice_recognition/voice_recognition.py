@@ -1,28 +1,31 @@
 from resemblyzer import VoiceEncoder, preprocess_wav, trim_long_silences
 from AI.voice_recognition.micstream import MicStream
-from AI.voice_recognition.voice_data import load_voice_embeddings, DEFAULT_SAVE_PATH
-from queue import Queue
+from AI.voice_recognition.voice_data import load_voice_embeddings
+from util import load_people_encodings, ENCODINGS_FILEPATH
 import numpy as np
 import pyaudio
 import resemblyzer
 import speech_recognition as sr
 import copy
 import time
-import torch
 import audioop as ap
 from typing import Union
-import silero_vad as sv
-from collections import defaultdict
 
 
-def voice_rec_loop(que:list=None, namespace=None, savepath=DEFAULT_SAVE_PATH):
+def voice_rec_loop(que:list=None, namespace=None, savepath=ENCODINGS_FILEPATH):
+    '''
+    Function to create and run VoiceRecognition() loop. Useful for multiprocessing.
+
+    :param que: Multiprocessing Manager list used as que for data transfer to host process.
+    :param namespace: Namespace object to set flags for the process.
+    :param savepath: Savepath for the voice encodings.
+    '''
     vr = VoiceRecognition(namespace=namespace, que=que)
-    # vr.detect_speaker(que=que)
     vr.detect_speaker()
 
 
 class VoiceRecognition:
-    def __init__(self, namespace=None, savepath=DEFAULT_SAVE_PATH, que:list=None):
+    def __init__(self, namespace=None, savepath=ENCODINGS_FILEPATH, que:list=None):
         self.namespace = namespace
         self.que = que
         self.setup_namespace()
@@ -36,8 +39,10 @@ class VoiceRecognition:
     def load_embeddings(self, filepath=None):
         if filepath is None:
             filepath = self.EMBEDDINGS_PATH
-        voices = load_voice_embeddings(filename=filepath)
-        self.names, self.speaker_embs = [i[0] for i in voices], [i[1] for i in voices]
+
+        self.encodings = load_people_encodings(filename=filepath)
+        for k, v in self.encodings.items():
+            del v['face_encoding']
 
 
     def setup_namespace(self):
@@ -84,7 +89,8 @@ class VoiceRecognition:
         wav = trim_long_silences(wav)
         data = self.encoder.embed_utterance(wav)
 
-        for i, emb in enumerate(self.speaker_embs):
+        for i, v in self.encodings.items():
+            emb = v['voice_encoding']
             score = np.inner(emb, data)
             print('speaker score: ', score)
             if score >= threshold and score > maxscore:
@@ -94,7 +100,7 @@ class VoiceRecognition:
         return index
 
 
-    def set_ambient_threshold(self, stream:MicStream, secs=2, energy_ratio=1.5):
+    def set_ambient_threshold(self, stream:MicStream, secs=2, energy_ratio=1.5) -> None:
         '''
         Samples the audio stream to determine an audio threshold.
         '''
@@ -112,10 +118,11 @@ class VoiceRecognition:
 
 
 
-    def get_phrase(self, stream, timeout=None):
+    def get_phrase(self, stream, timeout=None) -> list:
         '''
         Automatically waits and returns a full phrase retrieved from mic. Waits for the energy threshold to pass
         the set threshold and then listens until the energy goes back down below the threshold.
+        
         '''
         active_listen = False
         sample = [] # samples in 1 second intervals of chunks (10 chunks)
@@ -144,14 +151,10 @@ class VoiceRecognition:
                 return phrase  
 
 
-    def detect_speaker(self,
-                    chunk_count:int=20, 
-                    similarity_threshold:float=.8,
-                    voice_encodings_path=DEFAULT_SAVE_PATH) -> None:
+    def detect_speaker(self, similarity_threshold:float=.8) -> None:
         '''
         Runs a loop to listen to mic and detect who is speaking. Processes audio into strings that can be used.
         
-        :param chunk_count: Int that represents how many chunks to sample to determine speaker. Default is 20 which is 2 seconds.
         :param similarity_threshold: threshold used to identify speaker similarity. Defaults to 0.8. Higher means more precise, smaller more leeway.
         
         '''
@@ -171,10 +174,6 @@ class VoiceRecognition:
 
 
                 wav_bytes = b''.join(phrase)
-
-                wav = preprocess_wav(np.frombuffer(wav_bytes, dtype=np.int16).astype(np.float32))
-                wav = trim_long_silences(wav)
-                data = self.encoder.embed_utterance(wav)
                 speaker_index = self.get_speaker(phrase, threshold=similarity_threshold)
                 
                 try:
@@ -192,7 +191,7 @@ class VoiceRecognition:
 
                 if self.que is not None:
                     self.que.append({
-                        'speaker': self.names[speaker_index] if speaker_index >= 0 else 'Unknown',
+                        'speaker': self.encodings[speaker_index]['name'] if speaker_index >= 0 else 'Unknown',
                         'speaker_index': speaker_index,
                         'transcript': transcript,
                         'audio_bytes': wav_bytes,

@@ -2,6 +2,7 @@ from AI.facial_recognition import facial_rec_loop, add_face, load_faces
 from AI.voice_recognition import voice_rec_loop, add_voice
 from multiprocessing import Process, Manager
 from collections import defaultdict
+from util import add_encoding
 import sounddevice as sd
 import time
 from TTS.api import TTS
@@ -115,9 +116,10 @@ class WallEManager:
             continue
     
         data = que.pop(0)
-        add_voice(data['audio_bytes'], name)
+        # add_voice(data['audio_bytes'], name)
 
         self.speak('Thank you, ' + name)
+        return data['audio_bytes']
 
 
 
@@ -125,7 +127,7 @@ class WallEManager:
         '''
         Adds a new person to the known people. Learns their face and voice and saves it.
         '''
-        enc = self.get_face()
+        face_enc = self.get_face()
 
         self.speak('Thank you. Please tell me your name.')
         name = None
@@ -139,12 +141,15 @@ class WallEManager:
                 name = data['transcript']
 
         self.speak('Nice to meet you ' + data['transcript'])
-        add_face(name, enc)
-        nsface.reload = True
-
+        # add_face(name, enc)
+        
         # learns voice
-        self.learn_voice(name)
+        audio_bytes = self.learn_voice(name)
+        
+        add_encoding(audio_bytes, face_enc, name)
+
         nsvoice.reload = True
+        nsface.reload = True
 
 
 

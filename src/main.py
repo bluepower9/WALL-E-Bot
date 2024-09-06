@@ -1,8 +1,5 @@
 from queue import Queue
-from multiprocessing import Manager, Process
 from WallEManager import WallEManager
-from TTS.api import TTS
-import sounddevice as sd
 
 
 

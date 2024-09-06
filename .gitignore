@@ -6,3 +6,4 @@ __pycache__/
 GoogleExample.py
 face_encodings
 voice_encodings*
+people_encodings

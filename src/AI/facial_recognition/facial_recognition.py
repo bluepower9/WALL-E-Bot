@@ -1,7 +1,7 @@
+from util import load_people_encodings, ENCODINGS_FILEPATH
 import cv2
 import face_recognition as fr
 import AI.facial_recognition.face_data as fd
-import numpy as np
 
 
 def facial_rec_loop(que=None, namespace=None):
@@ -10,7 +10,7 @@ def facial_rec_loop(que=None, namespace=None):
 
 
 class FacialRecognition:
-    def __init__(self, que:list=None, namespace=None, save_path=fd.DEFAULT_SAVE_PATH):
+    def __init__(self, que:list=None, namespace=None, save_path=ENCODINGS_FILEPATH):
         self.STOP_FLAG = False
         self.que = que
         self.namespace = namespace
@@ -22,10 +22,19 @@ class FacialRecognition:
 
     def load_face_encodings(self):
         print('loading saved faces')
-        __ = fd.load_faces(path=self.save_path)
-        self.encodings, self.names = [i[1] for i in __], [i[0] for i in __]
+        filepath = self.save_path
+        if self.save_path is None:
+            filepath = self.EMBEDDINGS_PATH
 
+        self.encodings = load_people_encodings(filename=filepath)
+        self.known_faces, self.userids = [], []
 
+        for k, v in self.encodings.items():
+            del v['voice_encoding']
+            self.known_faces.append(v['face_encoding'])
+            self.userids.append(k)
+
+        
     def detect_face(self, frame):
         '''
         detects face from a given frame. Converts color scheme from BGR to RGB and 
@@ -40,16 +49,18 @@ class FacialRecognition:
         face_encs = fr.face_encodings(small_frame, face_locs)
         # iterates over detected faces to give each a name
         names = []
+
         for enc in face_encs:
             name = 'Unknown'
-            matches = fr.compare_faces(self.encodings, enc)
+            matches = fr.compare_faces(self.known_faces, enc)
 
             if True in matches:
                 # face_dist = fr.face_distance(ENCODINGS, enc)
                 # smallest_dist = np.argmin(face_dist)
                 # name = NAMES[smallest_dist]
 
-                name = self.names[matches.index(True)]   # gets the first match and returns that name
+                id = self.userids[matches.index(True)]   # gets the first match and returns that name
+                name = self.encodings[id]['name']
             
             names.append(name)
         
