@@ -127,6 +127,7 @@ class VoiceRecognition:
         active_listen = False
         sample = [] # samples in 1 second intervals of chunks (10 chunks)
         phrase = []
+        energylvls = []
 
         generator = stream.generator()
 
@@ -137,17 +138,22 @@ class VoiceRecognition:
                 sample.pop(0)
 
             energy = ap.rms(b''.join(sample), 2)
+
             if active_listen:
                 phrase.append(chunk)
+                energylvls.append(energy)
+                if len(energylvls) > 10:
+                    energylvls.pop(0)
 
             # sets active listen state if energy > threshold for the 1 sec sample
             if not active_listen and energy > self.threshold:
                 print('Detected speaker')
                 active_listen = True
                 phrase = copy.deepcopy(sample)
+                energylvls = [energy]
 
-            # returns when actively listening and energy falls below threshold
-            if active_listen and energy < self.threshold:
+            # returns when actively listening and energy falls below threshold and for certain amount of time.
+            if active_listen and sum(energylvls)/len(energylvls) < self.threshold:
                 return phrase  
 
 

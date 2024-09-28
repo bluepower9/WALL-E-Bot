@@ -25,8 +25,8 @@ def load_people_encodings(filename=ENCODINGS_FILEPATH):
     {
         userid (int): {
             name (str),
-            face_encodings (tensor),
-            voice_encodings (tensor)
+            face_encoding (tensor),
+            voice_encoding (tensor)
         }
     }
     '''

@@ -7,6 +7,7 @@ import sounddevice as sd
 import time
 from TTS.api import TTS
 from num2words import num2words
+from AI.persistent_memory import Memory
 
 
 def wait_for_que(que:list):
@@ -26,6 +27,7 @@ class WallEManager:
         self.data_ques = defaultdict(self.manager.list)
         self.tts = TTS(model_name="tts_models/multilingual/multi-dataset/your_tts")
         self.all_processes = defaultdict(None)
+        self.memory = Memory()
 
         self.process_map = {
             'face': {'func': facial_rec_loop, 'args': (), 'kwargs': {'que': self.data_ques['face'], 'namespace': self.setup_namespace()}},
@@ -39,6 +41,15 @@ class WallEManager:
             if p in self.process_map.keys():
                 d = self.process_map[p]
                 self.all_processes[p] = Process(target=d['func'], args=d['args'], kwargs=d['kwargs'], daemon=True)
+
+
+    def reload_configs(self):
+        nsface = self.process_map['face']['kwargs']['namespace']
+        nsvoice = self.process_map['voice']['kwargs']['namespace']
+
+        nsvoice.reload = True
+        nsface.reload = True
+        self.memory.reload()
 
 
     def setup_namespace(self):
@@ -132,9 +143,6 @@ class WallEManager:
         self.speak('Thank you. Please tell me your name.')
         name = None
 
-        nsface = self.process_map['face']['kwargs']['namespace']
-        nsvoice = self.process_map['voice']['kwargs']['namespace']
-
         while name is None:
             data = self.get_mic_sample()
             if data['success']:
@@ -147,9 +155,7 @@ class WallEManager:
         audio_bytes = self.learn_voice(name)
         
         add_encoding(audio_bytes, face_enc, name)
-
-        nsvoice.reload = True
-        nsface.reload = True
+        self.reload_configs()
 
 
 
@@ -168,7 +174,7 @@ class WallEManager:
             if t[0].isdigit():
                 text_list[i] = num2words(t.replace(',', ''))
 
-        wav = self.tts.tts(' '.join(text_list), speaker_wav='./AI/voice_recognition/test1.wav', language='en')
+        wav = self.tts.tts(' '.join(text_list), speaker_wav='./AI/voice_recognition/LiSA_test.wav', language='en')
         sd.play(wav, 16000)
         sd.wait()
 
@@ -187,7 +193,14 @@ class WallEManager:
             data = self.data_ques['voice'].pop(0)
             print(f'{data["speaker"]}: {data["transcript"]}')
             self.speak(data['transcript'])
-            if data['transcript'].lower().strip('.') == 'add new person':
+
+            transcript = data['transcript']
+            spkridx = data['speaker_index']
+
+            if spkridx >= 0:
+                self.memory.add_utterance(spkridx, transcript, 0)
+
+            if transcript.lower().strip('.') == 'add new person':
                 self.add_person()
 
             

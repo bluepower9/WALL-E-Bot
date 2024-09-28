@@ -1,5 +1,6 @@
 {
     "database": {
-        "chromadb": "./vectordb/db/"
+        "chromadb": "./data/databases/vector.db",
+        "sqldb": "./data/databases/conversations.db"
     }
 }
