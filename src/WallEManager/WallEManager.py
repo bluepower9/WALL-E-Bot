@@ -70,11 +70,12 @@ class WallEManager:
 
     def get_face(self):
         frque = self.data_ques['face']
-        frque[:] = []
 
         self.speak('Now learning your face. Please make sure other people are not in the camera.')
 
         face_enc = None
+        frque[:] = []
+        
         # loop to wait for face for 2 seconds before encoding it.
         while face_enc is None:
             start = time.time()
@@ -179,6 +180,24 @@ class WallEManager:
         sd.wait()
 
 
+    def handle_voice_input(self, data: dict):
+        print(f'{data["speaker"]}: {data["transcript"]}')
+        self.speak(data['transcript'])
+
+        transcript = data['transcript']
+        spkridx = data['speaker_index']
+
+        if spkridx >= 0:
+            memories = self.memory.search_memory(spkridx, transcript)
+            history = self.memory.create_chat_string(memories)
+            print(history)
+
+            self.memory.add_utterance(spkridx, transcript, 0)
+
+
+        if transcript.lower().strip('.') == 'add new person':
+            self.add_person()
+
     
     def loop(self):
         '''
@@ -191,17 +210,7 @@ class WallEManager:
                 continue
             
             data = self.data_ques['voice'].pop(0)
-            print(f'{data["speaker"]}: {data["transcript"]}')
-            self.speak(data['transcript'])
-
-            transcript = data['transcript']
-            spkridx = data['speaker_index']
-
-            if spkridx >= 0:
-                self.memory.add_utterance(spkridx, transcript, 0)
-
-            if transcript.lower().strip('.') == 'add new person':
-                self.add_person()
+            self.handle_voice_input(data)
 
             
                 

@@ -2,5 +2,8 @@
     "database": {
         "chromadb": "./data/databases/vector.db",
         "sqldb": "./data/databases/conversations.db"
+    },
+    "openai": {
+        "key": "key here"
     }
 }
